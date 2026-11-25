@@ -1,0 +1,40 @@
+@startuml C4_Context_Deposits_MVP
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Контекст — открытие депозитов онлайн (MVP)
+
+Person(client, "Клиент", "Новый или существующий клиент банка")
+Person(ccManager, "Менеджер кол-центра", "Обрабатывает заявки с сайта")
+Person(boManager, "Менеджер бэк-офиса депозитов", "Подтверждает условия в АБС")
+Person(branchEmp, "Сотрудник отделения", "Проводит KYC и открывает депозит")
+
+System(site, "Сайт банка", "PHP, React.js. Ставки и заявка")
+System(ib, "Интернет-банк", "ASP.NET MVC 4.5. Ставки, заявка, OTP")
+System(cc, "Система кол-центра", "React.js, Java Spring Boot")
+System(deposit, "Сервис депозитных заявок", "Новый. Заявки, статусы, идемпотентность")
+System(rates, "Сервис ставок", "Новый. Единый источник ставок")
+System(notify, "Сервис уведомлений и OTP", "Новый. СМС и OTP")
+System(abs, "АБС", "Delphi, Oracle. Учёт депозитов")
+
+System_Ext(sms, "СМС-шлюз телеком-оператора", "Отправка СМС")
+
+Rel(client, site, "Смотрит ставки, подаёт заявку", "HTTPS")
+Rel(client, ib, "Смотрит ставки, подаёт заявку", "HTTPS")
+Rel(ccManager, cc, "Работает с заявками", "UI")
+Rel(boManager, deposit, "Смотрит очередь заявок", "UI/HTTPS")
+Rel(boManager, abs, "Подтверждает условия", "UI")
+Rel(branchEmp, abs, "Открывает депозит после KYC", "UI")
+
+Rel(site, deposit, "REST/HTTPS")
+Rel(ib, deposit, "REST/HTTPS")
+Rel(site, rates, "REST/HTTPS")
+Rel(ib, rates, "REST/HTTPS")
+Rel(cc, deposit, "REST/HTTPS")
+
+Rel(deposit, abs, "Асинхронно через адаптер", "Kafka + staging Oracle")
+Rel(deposit, notify, "События", "Kafka")
+Rel(rates, abs, "Синхронизация ставок", "Асинхронно")
+Rel(notify, sms, "Отправка СМС", "HTTPS/API")
+
+SHOW_LEGEND()
+@enduml
