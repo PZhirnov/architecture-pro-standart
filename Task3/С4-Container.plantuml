@@ -1,0 +1,68 @@
+@startuml C4_Container_Deposits_MVP
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Контейнеры — открытие депозитов онлайн (MVP)
+
+Person(client, "Клиент")
+Person(ccManager, "Менеджер кол-центра")
+Person(boManager, "Менеджер бэк-офиса")
+
+System_Ext(sms, "СМС-шлюз телеком-оператора")
+
+Container_Boundary(bank, "Банк «Стандарт»") {
+
+  Container(site, "Сайт", "PHP, React.js", "Ставки и форма заявки")
+  Container(ib, "Интернет-банк", "ASP.NET MVC 4.5", "Ставки, заявка, OTP")
+
+  Container(api, "API Gateway / BFF", "Java Spring Boot", "TLS, аутентификация, rate limiting, маршрутизация, версионирование API")
+
+  Container(deposit, "Сервис депозитных заявок", "Java Spring Boot", "Заявки, статусы, идемпотентность, outbox")
+  ContainerDb(depositDb, "БД заявок", "MS SQL", "Заявки, статусы, ключи идемпотентности, outbox")
+
+  Container(rates, "Сервис ставок", "Java Spring Boot", "Ставки, версии, RBAC")
+  ContainerDb(ratesDb, "БД ставок", "MS SQL", "Ставки и история изменений")
+  ContainerDb(cache, "Кэш ставок", "Redis", "Быстрое чтение ставок")
+
+  Container(otp, "Сервис OTP", "Java Spring Boot", "Генерация и проверка кодов")
+  Container(notify, "Сервис уведомлений", "Java Spring Boot", "СМС по событиям заявки")
+
+  Container(absAdapter, "АБС-адаптер", "Java Spring Boot", "Обмен с АБС через staging Oracle")
+
+  ContainerQueue(kafka, "Kafka", "Apache Kafka", "События заявок и статусов")
+
+  Container(cc, "Система кол-центра", "React.js, Java Spring Boot", "Обработка заявок")
+
+  ContainerDb(absDb, "БД АБС", "Oracle", "Staging-таблицы, учёт депозитов")
+  Container(absApp, "АБС (приложение)", "Delphi", "Рабочие места сотрудников")
+}
+
+Rel(client, site, "HTTPS")
+Rel(client, ib, "HTTPS")
+Rel(ccManager, cc, "UI")
+Rel(boManager, deposit, "UI")
+Rel(boManager, absApp, "UI")
+
+Rel(site, api, "REST/HTTPS")
+Rel(ib, api, "REST/HTTPS")
+Rel(cc, api, "REST/HTTPS")
+
+Rel(api, deposit, "REST")
+Rel(api, rates, "REST")
+Rel(api, otp, "REST")
+
+Rel(deposit, depositDb, "JDBC")
+Rel(rates, ratesDb, "JDBC")
+Rel(rates, cache, "Запись/чтение")
+
+Rel(deposit, kafka, "Публикация событий")
+Rel(kafka, absAdapter, "Команды")
+Rel(absAdapter, absDb, "Staging-таблицы, Oracle")
+Rel(absApp, absDb, "Работа")
+Rel(kafka, notify, "События")
+Rel(kafka, cc, "События")
+Rel(notify, sms, "HTTPS")
+
+Rel_L(otp, sms, "СМС с кодом", "HTTPS")
+
+SHOW_LEGEND()
+@enduml
